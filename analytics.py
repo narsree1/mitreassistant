@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-TOTAL_TECHNIQUES = 211  # per user instruction; update when ATT&CK version changes
+TOTAL_TECHNIQUES = 211  # per your current ATT&CK count; update when ATT&CK version changes
 
 def compute_coverage(mapped_df: pd.DataFrame) -> float:
     """
@@ -11,7 +11,7 @@ def compute_coverage(mapped_df: pd.DataFrame) -> float:
     tech_ids = set()
     if "TechniqueIDs" in mapped_df.columns:
         for val in mapped_df["TechniqueIDs"].fillna("").astype(str):
-            for tid in val.split(","):
+            for tid in str(val).split(","):
                 tid = tid.strip()
                 if tid:
                     tech_ids.add(tid)
@@ -31,7 +31,6 @@ def render_analytics(mapped_csv_file):
     # Metrics
     total_usecases = len(df)
     coverage_pct = compute_coverage(df)
-    mapped_rows = (df["Match Source"] != "N/A").sum() if "Match Source" in df.columns else 0
     lib_rows = (df["Match Source"] == "Library").sum() if "Match Source" in df.columns else 0
     model_rows = (df["Match Source"] == "Model").sum() if "Match Source" in df.columns else 0
 
@@ -41,14 +40,16 @@ def render_analytics(mapped_csv_file):
     col3.metric("Library Matches", lib_rows)
     col4.metric("Model Matches", model_rows)
 
-    # Show distinct techniques
+    # Distinct techniques list
     st.subheader("Mapped Techniques (unique)")
     if "TechniqueIDs" in df.columns and "Techniques" in df.columns:
         exploded = []
         for _, r in df.iterrows():
             ids = [t.strip() for t in str(r["TechniqueIDs"]).split(",") if str(t).strip()]
             disps = [t.strip() for t in str(r["Techniques"]).split(",") if str(t).strip()]
-            for tid, disp in zip(ids, disps if len(disps) == len(ids) else ids):
+            if len(disps) != len(ids):
+                disps = ids  # fallback
+            for tid, disp in zip(ids, disps):
                 exploded.append({"TechniqueID": tid, "Technique": disp})
         uniq = pd.DataFrame(exploded).drop_duplicates().sort_values("TechniqueID")
         st.dataframe(uniq, use_container_width=True)
